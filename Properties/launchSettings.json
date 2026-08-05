@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "WM": {
+      "commandName": "Executable",
+      "executablePath": "D:\\SteamLibrary\\steamapps\\common\\Gorilla Tag\\Gorilla Tag.exe"
+    }
+  }
+}
