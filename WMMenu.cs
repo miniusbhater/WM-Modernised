@@ -14,6 +14,7 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.XR.Interaction.Toolkit;
 using Utilla;
 
 namespace WM
@@ -42,8 +43,8 @@ namespace WM
 
         public static GameObject playerToFollow;
 
-        public static GameObject CameraObj;
-        public static Camera CameraObjCamera;
+       // public static GameObject CameraObj;
+       // public static Camera CameraObjCamera;
 
         public static LineRenderer pointer;
 
@@ -77,7 +78,7 @@ namespace WM
 
         void OnGameInitialized(object sender, EventArgs e)
         {
-            CameraObj = new GameObject();
+            /*CameraObj = new GameObject();
             CameraObj.name = "< WM FIRST PERSON >";
             CameraObj.transform.SetParent(GorillaTagger.Instance.headCollider.transform, false);
             CameraObjCamera = CameraObj.AddComponent<Camera>();
@@ -87,7 +88,7 @@ namespace WM
             CameraObjCamera.enabled = true;
             CameraObjCamera.nearClipPlane = 0.08f;
             CameraObjCamera.fieldOfView = 120;
-            GameObject.Find("Third Person Camera/Shoulder Camera").GetComponent<Camera>().enabled = false;
+            GameObject.Find("Third Person Camera/Shoulder Camera").GetComponent<Camera>().enabled = false;*/
         }
 
         void Update()
@@ -105,7 +106,7 @@ namespace WM
 
                     if (ControllerInputPoller.instance != null)
                     {
-                        menuOpen = ControllerInputPoller.instance.rightControllerPrimaryButton;
+                        menuOpen = ControllerInputPoller.instance.rightControllerPrimaryButton; // had to switch to ControllerInputPoller
                     }
 
                     if (menuOpen && menu == null)
@@ -279,8 +280,10 @@ namespace WM
                         if (buttonsTrollActive[0] == true)
                         {
                             if (PhotonNetwork.InRoom)
-                            {
+                            { 
+                                // temp removed
                             }
+
                             else
                             {
                                 GorillaTagger.Instance.offlineVRRig.head.trackingRotationOffset = GorillaTagger.Instance.offlineVRRig.head.trackingRotationOffset + new Vector3(180, 180, 0);
@@ -291,6 +294,7 @@ namespace WM
                         {
                             if (PhotonNetwork.InRoom)
                             {
+                                // temp removed
                             }
                             else
                             {
@@ -302,6 +306,7 @@ namespace WM
                         {
                             if (PhotonNetwork.InRoom)
                             {
+                                // temp removed
                             }
                             else
                             {
@@ -312,6 +317,7 @@ namespace WM
                         {
                             if (PhotonNetwork.InRoom)
                             {
+                                // temp removed
                             }
                             else
                             {
@@ -541,7 +547,7 @@ namespace WM
             background.transform.localScale = new Vector3(0.1f, 1.2f, 1.4f);
             background.GetComponent<Renderer>().material = new Material(Shader.Find("Sprites/Default"));
             //background.GetComponent<Renderer>().material.mainTexture = Resources.Load<Material>("objects/forest/materials/dirt") != null ? Resources.Load<Material>("objects/forest/materials/dirt").mainTexture : null;
-            background.GetComponent<Renderer>().material = new Material(Shader.Find("Sprites/Default")); // new bg texture
+            background.GetComponent<Renderer>().material = new Material(Shader.Find("Sprites/Default")); // if anyone knows the dirt texture please make a pr
             background.GetComponent<Renderer>().material.SetColor("_Color", new Color(PlayerPrefs.GetFloat("redValue", 0), PlayerPrefs.GetFloat("greenValue", 0), PlayerPrefs.GetFloat("blueValue", 0)));
             background.transform.position = new Vector3(0.05f, 0f, -0.04f);
 
