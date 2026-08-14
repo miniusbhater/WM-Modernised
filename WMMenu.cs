@@ -164,9 +164,11 @@ namespace WM
                             {
                                 if (invisMonke)
                                 {
+                                    // temp removed
                                 }
                                 else
                                 {
+                                    // temp removed
                                 }
                             }
                             else
@@ -189,9 +191,11 @@ namespace WM
                             {
                                 if (ghostMonke)
                                 {
+                                    // temp removed
                                 }
                                 else
                                 {
+                                    // temp removed
                                 }
                             }
                             else
@@ -248,6 +252,7 @@ namespace WM
                         }
                         if (buttonsActive[8] == true)
                         {
+                            // temp removed
                         }
                         if (buttonsActive[9] == true && ControllerInputPoller.instance != null)
                         {
@@ -264,6 +269,7 @@ namespace WM
                         }
                         if (buttonsActive[10] == true)
                         {
+                            // temp removed
                         }
                         if (buttonsActive[11] == true)
                         {
