@@ -14,7 +14,7 @@ namespace WM
         }
         public static void RiskyBusiness()
         {
-            GorillaGameManager.instance = null;
+            //GorillaGameManager.instance = null;
         }
     }
 }

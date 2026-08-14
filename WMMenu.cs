@@ -1,22 +1,26 @@
-﻿using BepInEx;
-using HarmonyLib;
-using System.Collections.Generic;
-using System.Collections;
-using System;
+﻿// I am trying to keep this as faithful as i can to the original wm source code
+// Obviously it needs many changes to work with modern GT
+// I have deleted all of the original comments as to not be confusing
+
+using BepInEx;
+using GorillaLocomotion;
 using GorillaNetworking;
+using HarmonyLib;
 using Photon.Pun;
+using Photon.Realtime;
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
 using UnityEngine;
 using UnityEngine.UI;
-using GorillaLocomotion;
-using System.IO;
-using UnityEngine.XR;
+using Utilla;
 
 namespace WM
 {
     [BepInPlugin(PluginInfo.GUID, PluginInfo.Name, PluginInfo.Version)]
     public class WMMenu : BaseUnityPlugin
     {
-        //Normal Monke Mod Menu Bullshit.
         static string[] buttons = new string[] { "Fly", "Invis Monke", "Mod Check (OnGUI)", "Ghost Monke", "Platforms", "Refresh Photon", "Save Current Room Players", "Remove Tutorial PlayerPref", "No Slip", "Iron Monke", "Everything is Ice", "Go To Troll Menu" };
         static bool?[] buttonsActive = new bool?[] { false, false, false, false, false, false, false, false, false, false, false, false };
         static string[] buttonsTroll = new string[] { "Head Fuckery", "Spaz", "Head Spin", "Attach To Player", "Duck.", "Sound Spam", "", "", "", "", "", "Return To Normal Menu" };
@@ -32,12 +36,10 @@ namespace WM
         static bool troll = false;
         static bool normal = true;
 
-        //Visual shit
         string MOTDMessage = "<color=cyan>< WM IS LOADED! >\n\n\nLOADED MODULES : WM MENU, WM GAMEMODE, WM PLAYER TRACKER</color>";
 
         public static bool onceDuck;
 
-        //Mod GameObjects
         public static GameObject playerToFollow;
 
         public static GameObject CameraObj;
@@ -54,6 +56,13 @@ namespace WM
         {
             PlayerPrefs.SetString("tutorial", "done");
         }
+
+        void Start()
+        {
+            menuOpen = true;
+            Draw();
+        }
+
         void OnEnable()
         {
             HarmonyPatches.ApplyHarmonyPatches();
@@ -65,21 +74,22 @@ namespace WM
             HarmonyPatches.RemoveHarmonyPatches();
             Utilla.Events.GameInitialized -= OnGameInitialized;
         }
+
         void OnGameInitialized(object sender, EventArgs e)
         {
             CameraObj = new GameObject();
             CameraObj.name = "< WM FIRST PERSON >";
-            CameraObj.transform.SetParent(Player.Instance.headCollider.transform,false);
+            CameraObj.transform.SetParent(GorillaTagger.Instance.headCollider.transform, false);
             CameraObjCamera = CameraObj.AddComponent<Camera>();
             CameraObjCamera.stereoTargetEye = StereoTargetEyeMask.None;
             CameraObjCamera.enabled = false;
-            Player.Instance.gameObject.AddComponent<PlayerTracker>();
             StartCoroutine(WaitSeconds(0.2f));
             CameraObjCamera.enabled = true;
             CameraObjCamera.nearClipPlane = 0.08f;
             CameraObjCamera.fieldOfView = 120;
             GameObject.Find("Third Person Camera/Shoulder Camera").GetComponent<Camera>().enabled = false;
         }
+
         void Update()
         {
             verified = true;
@@ -89,12 +99,14 @@ namespace WM
                 {
                     if (maxJumpSpeed == null)
                     {
-                        maxJumpSpeed = Player.Instance.maxJumpSpeed;
+                        maxJumpSpeed = GTPlayer.Instance.maxJumpSpeed;
                         verified = true;
                     }
 
-                    List<InputDevice> list = new List<InputDevice>();
-                    InputDevices.GetDeviceAtXRNode(XRNode.RightHand).TryGetFeatureValue(CommonUsages.primary2DAxisClick, out menuOpen);
+                    if (ControllerInputPoller.instance != null)
+                    {
+                        menuOpen = ControllerInputPoller.instance.rightControllerPrimaryButton;
+                    }
 
                     if (menuOpen && menu == null)
                     {
@@ -103,7 +115,7 @@ namespace WM
                         {
                             referance = GameObject.CreatePrimitive(PrimitiveType.Sphere);
                             GameObject.Destroy(referance.GetComponent<MeshRenderer>());
-                            referance.transform.parent = Player.Instance.rightHandTransform;
+                            referance.transform.parent = GTPlayer.Instance.RightHand.controllerTransform;
                             referance.transform.localPosition = new Vector3(0f, -0.1f, 0f);
                             referance.transform.localScale = new Vector3(0.01f, 0.01f, 0.01f);
                         }
@@ -118,45 +130,42 @@ namespace WM
 
                     if (menuOpen && menu != null)
                     {
-                        menu.transform.position = Player.Instance.leftHandTransform.position + Player.Instance.leftHandTransform.forward / 10;
-                        menu.transform.rotation = Player.Instance.leftHandTransform.rotation;
+                        menu.transform.position = GTPlayer.Instance.LeftHand.controllerTransform.position + GTPlayer.Instance.LeftHand.controllerTransform.forward / 10;
+                        menu.transform.rotation = GTPlayer.Instance.LeftHand.controllerTransform.rotation;
                     }
 
                     if (verified)
                     {
-                        if (buttonsActive[0] == true)
+                        if (buttonsActive[0] == true && ControllerInputPoller.instance != null)
                         {
-                            InputDevices.GetDeviceAtXRNode(XRNode.RightHand).TryGetFeatureValue(CommonUsages.secondaryButton, out bool Freeze);
-                            InputDevices.GetDeviceAtXRNode(XRNode.LeftHand).TryGetFeatureValue(CommonUsages.gripButton, out bool lFly);
-                            InputDevices.GetDeviceAtXRNode(XRNode.RightHand).TryGetFeatureValue(CommonUsages.gripButton, out bool rFly);
+                            bool Freeze = ControllerInputPoller.instance.rightControllerSecondaryButton;
+                            bool lFly = ControllerInputPoller.instance.leftControllerGripFloat > 0.5f;
+                            bool rFly = ControllerInputPoller.instance.rightControllerGripFloat > 0.5f;
                             if (Freeze)
                             {
-                                Player.Instance.bodyCollider.attachedRigidbody.velocity = new Vector3(0,0.01f,0);
+                                GTPlayer.Instance.bodyCollider.attachedRigidbody.velocity = new Vector3(0, 0.01f, 0);
                             }
                             if (lFly)
                             {
-                                Player.Instance.transform.position += Player.Instance.leftHandTransform.forward * 1.1f;
-                                Player.Instance.bodyCollider.attachedRigidbody.velocity = Vector3.zero;
+                                GTPlayer.Instance.transform.position += GTPlayer.Instance.RightHand.controllerTransform.forward * 1.1f;
+                                GTPlayer.Instance.bodyCollider.attachedRigidbody.velocity = Vector3.zero;
                             }
                             if (rFly)
                             {
-                                Player.Instance.transform.position += Player.Instance.rightHandTransform.forward * 1.1f;
-                                Player.Instance.bodyCollider.attachedRigidbody.velocity = Vector3.zero;
+                                GTPlayer.Instance.transform.position += GTPlayer.Instance.RightHand.controllerTransform.forward * 1.1f;
+                                GTPlayer.Instance.bodyCollider.attachedRigidbody.velocity = Vector3.zero;
                             }
                         }
-                        if (buttonsActive[1] == true)
+                        if (buttonsActive[1] == true && ControllerInputPoller.instance != null)
                         {
-                            InputDevices.GetDeviceAtXRNode(XRNode.LeftHand).TryGetFeatureValue(CommonUsages.primaryButton, out bool invisMonke);
+                            bool invisMonke = ControllerInputPoller.instance.leftControllerPrimaryButton;
                             if (PhotonNetwork.InRoom)
                             {
                                 if (invisMonke)
                                 {
-                                    GorillaTagger.Instance.myVRRig.enabled = false;
-                                    GorillaTagger.Instance.myVRRig.transform.position = new Vector3(Player.Instance.headCollider.transform.position.x, -646.46464f, Player.Instance.headCollider.transform.position.z);
                                 }
                                 else
                                 {
-                                    GorillaTagger.Instance.myVRRig.enabled = true;
                                 }
                             }
                             else
@@ -172,18 +181,16 @@ namespace WM
                         {
                             WMUtils.ModCheck = false;
                         }
-                        if (buttonsActive[3] == true)
+                        if (buttonsActive[3] == true && ControllerInputPoller.instance != null)
                         {
-                            InputDevices.GetDeviceAtXRNode(XRNode.LeftHand).TryGetFeatureValue(CommonUsages.primaryButton, out bool ghostMonke);
+                            bool ghostMonke = ControllerInputPoller.instance.leftControllerPrimaryButton;
                             if (PhotonNetwork.InRoom)
                             {
                                 if (ghostMonke)
                                 {
-                                    GorillaTagger.Instance.myVRRig.enabled = false;
                                 }
                                 else
                                 {
-                                    GorillaTagger.Instance.myVRRig.enabled = true;
                                 }
                             }
                             else
@@ -191,20 +198,22 @@ namespace WM
                                 Log(true, "NOT IN ROOM!");
                             }
                         }
-                        if (buttonsActive[4] == true)
+                        if (buttonsActive[4] == true && ControllerInputPoller.instance != null)
                         {
-                            leftPlat.GetComponent<Renderer>().material.mainTexture = Resources.Load<Material>("objects/forest/materials/dirt").mainTexture;
-                            leftPlat.GetComponent<Renderer>().material.SetColor("_Color", new Color(PlayerPrefs.GetFloat("redValue", 0), PlayerPrefs.GetFloat("greenValue", 0), PlayerPrefs.GetFloat("blueValue", 0)));
-                            rightPlat.GetComponent<Renderer>().material.mainTexture = Resources.Load<Material>("objects/forest/materials/dirt").mainTexture;
-                            rightPlat.GetComponent<Renderer>().material.SetColor("_Color", new Color(PlayerPrefs.GetFloat("redValue", 0), PlayerPrefs.GetFloat("greenValue", 0), PlayerPrefs.GetFloat("blueValue", 0)));
-                            InputDevices.GetDeviceAtXRNode(XRNode.RightHand).TryGetFeatureValue(CommonUsages.triggerButton, out bool rightButton);
-                            InputDevices.GetDeviceAtXRNode(XRNode.LeftHand).TryGetFeatureValue(CommonUsages.triggerButton, out bool leftButton);
-                            if (rightButton) { if (!onceRightSecButton) { rightPlat.transform.position = Player.Instance.rightHandFollower.position + new Vector3(0, -0.05f, 0); onceRightSecButton = true; } } else { if (onceRightSecButton) { rightPlat.transform.position = new Vector3(0, -6464, 0); onceRightSecButton = false; } }
-                            if (leftButton) { if (!onceLeftSecButton) { leftPlat.transform.position = Player.Instance.leftHandFollower.position + new Vector3(0, -0.05f, 0); onceLeftSecButton = true; } } else { if (onceLeftSecButton) { leftPlat.transform.position = new Vector3(0, -6464, 0); onceLeftSecButton = false; } }
+                            if (leftPlat != null && rightPlat != null)
+                            {
+                                leftPlat.GetComponent<Renderer>().material.mainTexture = Resources.Load<Material>("objects/forest/materials/dirt").mainTexture;
+                                leftPlat.GetComponent<Renderer>().material.SetColor("_Color", new Color(PlayerPrefs.GetFloat("redValue", 0), PlayerPrefs.GetFloat("greenValue", 0), PlayerPrefs.GetFloat("blueValue", 0)));
+                                rightPlat.GetComponent<Renderer>().material.mainTexture = Resources.Load<Material>("objects/forest/materials/dirt").mainTexture;
+                                rightPlat.GetComponent<Renderer>().material.SetColor("_Color", new Color(PlayerPrefs.GetFloat("redValue", 0), PlayerPrefs.GetFloat("greenValue", 0), PlayerPrefs.GetFloat("blueValue", 0)));
+                                bool rightButton = ControllerInputPoller.instance.rightGrab;
+                                bool leftButton = ControllerInputPoller.instance.leftGrab;
+                                if (rightButton) { if (!onceRightSecButton) { rightPlat.transform.position = GTPlayer.Instance.RightHand.controllerTransform.position + new Vector3(0, -0.05f, 0); onceRightSecButton = true; } } else { if (onceRightSecButton) { rightPlat.transform.position = new Vector3(0, -6464, 0); onceRightSecButton = false; } }
+                                if (leftButton) { if (!onceLeftSecButton) { leftPlat.transform.position = GTPlayer.Instance.LeftHand.controllerTransform.position + new Vector3(0, -0.05f, 0); onceLeftSecButton = true; } } else { if (onceLeftSecButton) { leftPlat.transform.position = new Vector3(0, -6464, 0); onceLeftSecButton = false; } }
+                            }
                         }
                         if (buttonsActive[5] == true)
                         {
-                            StartCoroutine(RefreshPhoton());
                             buttonsActive[5] = false;
                             GameObject.Destroy(menu);
                             menu = null;
@@ -221,7 +230,7 @@ namespace WM
                                 File.AppendAllText("WM/Players/players.wm." + PhotonNetwork.CurrentRoom.Name + "_" + extension.ToString().Substring(0, 4) + ".txt", time + ", PLAYERS IN ROOM CODE " + PhotonNetwork.CurrentRoom.Name + ": \n");
                                 foreach (Photon.Realtime.Player plr in PhotonNetwork.PlayerList)
                                 {
-                                    File.AppendAllText("WM/Players/players.wm." + PhotonNetwork.CurrentRoom.Name + "_" + extension.ToString().Substring(0, 4) + ".txt", "Player Name : (" + WMUtils.NormalizeName(true, plr.NickName) + "), Player ID : (" + plr.UserId + "), Player Mods: ("+ plr.CustomProperties["mods"] +")\n");
+                                    File.AppendAllText("WM/Players/players.wm." + PhotonNetwork.CurrentRoom.Name + "_" + extension.ToString().Substring(0, 4) + ".txt", "Player Name : (" + WMUtils.NormalizeName(true, plr.NickName) + "), Player ID : (" + plr.UserId + "), Player Mods: (" + plr.CustomProperties["mods"] + ")\n");
                                 }
                             }
                             GameObject.Destroy(menu);
@@ -238,24 +247,22 @@ namespace WM
                         }
                         if (buttonsActive[8] == true)
                         {
-                            //theres a harmonypatch that does this anyway lmaoooooo
                         }
-                        if (buttonsActive[9] == true)
+                        if (buttonsActive[9] == true && ControllerInputPoller.instance != null)
                         {
-                            InputDevices.GetDeviceAtXRNode(XRNode.RightHand).TryGetFeatureValue(CommonUsages.gripButton, out bool ironRight);
-                            InputDevices.GetDeviceAtXRNode(XRNode.LeftHand).TryGetFeatureValue(CommonUsages.gripButton, out bool ironLeft);
+                            bool ironRight = ControllerInputPoller.instance.rightGrab;
+                            bool ironLeft = ControllerInputPoller.instance.leftGrab;
                             if (ironRight)
                             {
-                                Player.Instance.bodyCollider.attachedRigidbody.velocity += Player.Instance.rightHandTransform.right / 5;
+                                GTPlayer.Instance.bodyCollider.attachedRigidbody.velocity += GTPlayer.Instance.RightHand.controllerTransform.right / 5;
                             }
                             if (ironLeft)
                             {
-                                Player.Instance.bodyCollider.attachedRigidbody.velocity += -Player.Instance.leftHandTransform.right / 5;
+                                GTPlayer.Instance.bodyCollider.attachedRigidbody.velocity += -GTPlayer.Instance.LeftHand.controllerTransform.right / 5;
                             }
                         }
                         if (buttonsActive[10] == true)
                         {
-                            //theres a harmonypatch that does this anyway lmaoooooo part 2
                         }
                         if (buttonsActive[11] == true)
                         {
@@ -273,11 +280,10 @@ namespace WM
                         {
                             if (PhotonNetwork.InRoom)
                             {
-                                GorillaTagger.Instance.myVRRig.head.rigTarget.eulerAngles = GorillaTagger.Instance.myVRRig.head.rigTarget.eulerAngles + new Vector3(180, 180, 0);
                             }
                             else
                             {
-                                GorillaTagger.Instance.offlineVRRig.head.rigTarget.eulerAngles = GorillaTagger.Instance.offlineVRRig.head.rigTarget.eulerAngles + new Vector3(180, 180, 0);
+                                GorillaTagger.Instance.offlineVRRig.head.trackingRotationOffset = GorillaTagger.Instance.offlineVRRig.head.trackingRotationOffset + new Vector3(180, 180, 0);
                             }
                         }
 
@@ -285,15 +291,10 @@ namespace WM
                         {
                             if (PhotonNetwork.InRoom)
                             {
-                                GorillaTagger.Instance.myVRRig.head.rigTarget.eulerAngles = new Vector3(UnityEngine.Random.Range(0, 360), UnityEngine.Random.Range(0, 360), UnityEngine.Random.Range(0, 360));
-                                GorillaTagger.Instance.myVRRig.leftHand.rigTarget.eulerAngles = new Vector3(UnityEngine.Random.Range(0, 360), UnityEngine.Random.Range(0, 360), UnityEngine.Random.Range(0, 360));
-                                GorillaTagger.Instance.myVRRig.rightHand.rigTarget.eulerAngles = new Vector3(UnityEngine.Random.Range(0, 360), UnityEngine.Random.Range(0, 360), UnityEngine.Random.Range(0, 360));
                             }
                             else
                             {
-                                GorillaTagger.Instance.offlineVRRig.head.rigTarget.eulerAngles = new Vector3(UnityEngine.Random.Range(0, 360), UnityEngine.Random.Range(0, 360), UnityEngine.Random.Range(0, 360));
-                                GorillaTagger.Instance.offlineVRRig.leftHand.rigTarget.eulerAngles = new Vector3(UnityEngine.Random.Range(0, 360), UnityEngine.Random.Range(0, 360), UnityEngine.Random.Range(0, 360));
-                                GorillaTagger.Instance.offlineVRRig.rightHand.rigTarget.eulerAngles = new Vector3(UnityEngine.Random.Range(0, 360), UnityEngine.Random.Range(0, 360), UnityEngine.Random.Range(0, 360));
+                                GorillaTagger.Instance.offlineVRRig.head.trackingRotationOffset = new Vector3(UnityEngine.Random.Range(0, 360), UnityEngine.Random.Range(0, 360), UnityEngine.Random.Range(0, 360));
                             }
                         }
 
@@ -301,56 +302,53 @@ namespace WM
                         {
                             if (PhotonNetwork.InRoom)
                             {
-                                GorillaTagger.Instance.myVRRig.head.trackingRotationOffset.y += 15;
                             }
                             else
                             {
                                 GorillaTagger.Instance.offlineVRRig.head.trackingRotationOffset.y += 15;
                             }
-
                         }
                         else
                         {
                             if (PhotonNetwork.InRoom)
                             {
-                                GorillaTagger.Instance.myVRRig.head.trackingRotationOffset.y = 0;
                             }
                             else
                             {
                                 GorillaTagger.Instance.offlineVRRig.head.trackingRotationOffset.y = 0;
                             }
                         }
-                        if (buttonsTrollActive[3] == true)
+                        if (buttonsTrollActive[3] == true && ControllerInputPoller.instance != null)
                         {
                             RaycastHit hit;
-                            InputDevices.GetDeviceAtXRNode(XRNode.RightHand).TryGetFeatureValue(CommonUsages.triggerButton, out bool attachToPlayer);
-                            InputDevices.GetDeviceAtXRNode(XRNode.RightHand).TryGetFeatureValue(CommonUsages.primaryButton, out bool detachFromPlayer);
-                            if (Physics.Raycast(GorillaTagger.Instance.offlineVRRig.rightHand.rigTarget.transform.position, GorillaTagger.Instance.offlineVRRig.rightHand.rigTarget.transform.up * 20, out hit, Mathf.Infinity, LayerMask.GetMask("Gorilla Tag Collider")))
+                            bool attachToPlayer = ControllerInputPoller.instance.rightControllerIndexFloat > 0.5f;
+                            bool detachFromPlayer = ControllerInputPoller.instance.rightControllerPrimaryButton;
+                            /*if (Physics.Raycast(GorillaTagger.Instance.offlineVRRig.rightHand.transform.position, GorillaTagger.Instance.offlineVRRig.rightHand.transform.up * 20, out hit, Mathf.Infinity, LayerMask.GetMask("Gorilla Tag Collider")))
                             {
                                 pointer.material.color = new Color(1, 1, 1);
                                 pointer.SetPositions(new Vector3[] {
-                                    GorillaTagger.Instance.offlineVRRig.rightHand.rigTarget.transform.position,
+                                    //GorillaTagger.Instance.offlineVRRig.rightHand.transform.position,
                                     hit.point
                                 });
                                 if (attachToPlayer)
                                 {
-                                    Player.Instance.enabled = false;
+                                    GTPlayer.Instance.enabled = false;
                                     playerToFollow = hit.transform.gameObject;
-                                    Player.Instance.enabled = true;
+                                    GTPlayer.Instance.enabled = true;
                                 }
                             }
                             else
                             {
                                 pointer.material.color = new Color(PlayerPrefs.GetFloat("redValue", 0), PlayerPrefs.GetFloat("greenValue", 0), PlayerPrefs.GetFloat("blueValue", 0));
                                 pointer.SetPositions(new Vector3[] {
-                                    GorillaTagger.Instance.offlineVRRig.rightHand.rigTarget.transform.position,
-                                    GorillaTagger.Instance.offlineVRRig.rightHand.rigTarget.transform.position+GorillaTagger.Instance.offlineVRRig.rightHand.rigTarget.transform.up * 999
+                                    //GorillaTagger.Instance.offlineVRRig.rightHand.transform.position,
+                                    //GorillaTagger.Instance.offlineVRRig.rightHand.transform.position + GorillaTagger.Instance.offlineVRRig.rightHand.transform.up * 999
                                 });
                             }
                             if (playerToFollow != null)
                             {
-                                Player.Instance.transform.position = playerToFollow.transform.position - Player.Instance.bodyCollider.transform.position + Player.Instance.transform.position + new Vector3(0, 1.5f, 0);
-                                Player.Instance.bodyCollider.attachedRigidbody.velocity = new Vector3(0, 1, 0);
+                                GTPlayer.Instance.transform.position = playerToFollow.transform.position - GTPlayer.Instance.bodyCollider.transform.position + GTPlayer.Instance.transform.position + new Vector3(0, 1.5f, 0);
+                                GTPlayer.Instance.bodyCollider.attachedRigidbody.velocity = new Vector3(0, 1, 0);
                             }
                             if (detachFromPlayer)
                             {
@@ -360,75 +358,79 @@ namespace WM
                         else
                         {
                             playerToFollow = null;
-                            pointer.SetPositions(new Vector3[]
+                            if (pointer != null)
                             {
+                                pointer.SetPositions(new Vector3[]
+                                {
                                     Vector3.zero,
                                     Vector3.zero
-                            });
-                        }
-                        if (buttonsTrollActive[4] == true)
-                        {
-                            InputDevices.GetDeviceAtXRNode(XRNode.RightHand).TryGetFeatureValue(CommonUsages.triggerButton, out bool duck);
-                            if (duck && !onceDuck)
+                                });
+                            }
+                        }*/
+                            if (buttonsTrollActive[4] == true && ControllerInputPoller.instance != null)
                             {
-                                if (GorillaTagger.Instance.myVRRig != null)
+                                bool duck = ControllerInputPoller.instance.rightControllerIndexFloat > 0.5f;
+                                if (duck && !onceDuck)
                                 {
-                                    PhotonView.Get(GorillaTagger.Instance.myVRRig).RPC("PlayHandTap", RpcTarget.All, new object[]
+                                    if (GorillaTagger.Instance.myVRRig != null)
                                     {
+                                        PhotonView.Get(GorillaTagger.Instance.myVRRig).RPC("PlayHandTap", RpcTarget.All, new object[]
+                                        {
                                     75,
                                     false,
                                     1f
-                                    });
-                                }
-                                else
-                                {
-                                    GorillaTagger.Instance.offlineVRRig.PlayHandTapLocal(75, false, 1f);
-                                }
-                                GorillaTagger.Instance.StartVibration(false, 0.2f, Time.deltaTime);
-                            }
-                            if (!duck && onceDuck)
-                            {
-                                if (GorillaTagger.Instance.myVRRig != null)
-                                {
-                                    PhotonView.Get(GorillaTagger.Instance.myVRRig).RPC("PlayHandTap", RpcTarget.Others, new object[]
+                                        });
+                                    }
+                                    else
                                     {
+                                        GorillaTagger.Instance.offlineVRRig.PlayHandTapLocal(75, false, 1f);
+                                    }
+                                    GorillaTagger.Instance.StartVibration(false, 0.2f, Time.deltaTime);
+                                }
+                                if (!duck && onceDuck)
+                                {
+                                    if (GorillaTagger.Instance.myVRRig != null)
+                                    {
+                                        PhotonView.Get(GorillaTagger.Instance.myVRRig).RPC("PlayHandTap", RpcTarget.Others, new object[]
+                                        {
                                     76,
                                     false,
                                     1f
-                                    });
+                                        });
+                                    }
+                                    else
+                                    {
+                                        GorillaTagger.Instance.offlineVRRig.PlayHandTapLocal(76, false, 1f);
+                                    }
+                                    GorillaTagger.Instance.StartVibration(false, 0.2f, Time.deltaTime);
                                 }
-                                else
-                                {
-                                    GorillaTagger.Instance.offlineVRRig.PlayHandTapLocal(76, false, 1f);
-                                }
-                                GorillaTagger.Instance.StartVibration(false, 0.2f, Time.deltaTime);
+                                onceDuck = duck;
                             }
-                            onceDuck = duck;
-                        }
-                        if (buttonsTrollActive[5] == true)
-                        {
-                            InputDevices.GetDeviceAtXRNode(XRNode.RightHand).TryGetFeatureValue(CommonUsages.triggerButton, out bool spam);
-                            if (spam)
+                            if (buttonsTrollActive[5] == true && ControllerInputPoller.instance != null)
                             {
-                                if (GorillaTagger.Instance.myVRRig != null)
+                                bool spam = ControllerInputPoller.instance.rightControllerIndexFloat > 0.5f;
+                                if (spam)
                                 {
-                                    Risky.SoundSpam();
-                                    Risky.SoundSpam();
-                                    Risky.SoundSpam();
-                                    Risky.SoundSpam();
+                                    if (GorillaTagger.Instance.myVRRig != null)
+                                    {
+                                        Risky.SoundSpam();
+                                        Risky.SoundSpam();
+                                        Risky.SoundSpam();
+                                        Risky.SoundSpam();
+                                    }
                                 }
                             }
-                        }
-                        if (buttonsTrollActive[11] == true)
-                        {
-                            buttonsTrollActive[11] = false;
-                            GameObject.Destroy(menu);
+                            if (buttonsTrollActive[11] == true)
+                            {
+                                buttonsTrollActive[11] = false;
+                                GameObject.Destroy(menu);
 
-                            normal = true;
-                            troll = false;
+                                normal = true;
+                                troll = false;
 
-                            menu = null;
-                            Draw();
+                                menu = null;
+                                Draw();
+                            }
                         }
                     }
                 }
@@ -438,15 +440,7 @@ namespace WM
                 File.AppendAllText("error_log.wmError", e.ToString());
             }
         }
-        IEnumerator RefreshPhoton()
-        {
-            PhotonNetworkController.Instance.FullDisconnect();
-            GorillaComputer.instance.screenText.Text = "RECONNECTING...";
-            GorillaTagger.Instance.offlineVRRig.PlayHandTapLocal(68,false,1);
-            GorillaTagger.Instance.offlineVRRig.PlayHandTapLocal(68,true,1);
-            yield return new WaitForSeconds(0.3f);
-            PhotonNetworkController.Instance.InitiateConnection();
-        }
+
         static void AddButton(float offset, string text)
         {
             GameObject newBtn = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -485,7 +479,7 @@ namespace WM
             GameObject titleObj = new GameObject();
             titleObj.transform.parent = canvasObj.transform;
             Text title = titleObj.AddComponent<Text>();
-            title.font = Resources.GetBuiltinResource(typeof(Font), "Arial.ttf") as Font;
+            title.font = Font.CreateDynamicFontFromOSFont("Arial", 16);
             title.fontStyle = FontStyle.Bold;
             title.text = "< " + text + " >";
             title.fontSize = 1;
@@ -545,8 +539,10 @@ namespace WM
             background.transform.parent = menu.transform;
             background.transform.rotation = Quaternion.identity;
             background.transform.localScale = new Vector3(0.1f, 1.2f, 1.4f);
-            background.GetComponent<Renderer>().material.mainTexture = Resources.Load<Material>("objects/forest/materials/dirt").mainTexture;
-            background.GetComponent<Renderer>().material.SetColor("_Color", new Color(PlayerPrefs.GetFloat("redValue",0), PlayerPrefs.GetFloat("greenValue", 0), PlayerPrefs.GetFloat("blueValue", 0)));
+            background.GetComponent<Renderer>().material = new Material(Shader.Find("Sprites/Default"));
+            //background.GetComponent<Renderer>().material.mainTexture = Resources.Load<Material>("objects/forest/materials/dirt") != null ? Resources.Load<Material>("objects/forest/materials/dirt").mainTexture : null;
+            background.GetComponent<Renderer>().material = new Material(Shader.Find("Sprites/Default")); // new bg texture
+            background.GetComponent<Renderer>().material.SetColor("_Color", new Color(PlayerPrefs.GetFloat("redValue", 0), PlayerPrefs.GetFloat("greenValue", 0), PlayerPrefs.GetFloat("blueValue", 0)));
             background.transform.position = new Vector3(0.05f, 0f, -0.04f);
 
             canvasObj = new GameObject();
@@ -560,7 +556,7 @@ namespace WM
             GameObject titleObj = new GameObject();
             titleObj.transform.parent = canvasObj.transform;
             Text title = titleObj.AddComponent<Text>();
-            title.font = Resources.GetBuiltinResource(typeof(Font), "Arial.ttf") as Font;
+            title.font = Font.CreateDynamicFontFromOSFont("Arial", 16);
             title.fontStyle = FontStyle.BoldAndItalic;
             if (normal)
             {
@@ -644,6 +640,7 @@ namespace WM
                 }
             }
         }
+
         public static void Log(bool err, string msg)
         {
             if (err)
@@ -661,7 +658,7 @@ namespace WM
             yield return new WaitForSeconds(seconds);
         }
 
-        [HarmonyPatch(typeof(GorillaLocomotion.Player), "GetSlidePercentage")]
+        [HarmonyPatch(typeof(GorillaLocomotion.GTPlayer), "GetSlidePercentage")]
         class NoSlip
         {
             static void Postfix(ref float __result)
@@ -672,7 +669,8 @@ namespace WM
                 }
             }
         }
-        [HarmonyPatch(typeof(GorillaLocomotion.Player), "GetSlidePercentage")]
+
+        [HarmonyPatch(typeof(GorillaLocomotion.GTPlayer), "GetSlidePercentage")]
         class Slip
         {
             static void Postfix(ref float __result)
@@ -684,6 +682,7 @@ namespace WM
             }
         }
     }
+
     class BtnCollider : MonoBehaviour
     {
         public string relatedText;
@@ -696,31 +695,20 @@ namespace WM
                 Debug.Log("buttan press");
                 GorillaTagger.Instance.StartVibration(false, GorillaTagger.Instance.tapHapticStrength / 2f, GorillaTagger.Instance.tapHapticDuration);
                 GorillaTagger.Instance.offlineVRRig.PlayHandTapLocal(67, false, .5f);
-                /*
-                if (PhotonNetwork.InRoom && GorillaTagger.Instance.myVRRig != null)
-                {
-                    Photon.Pun.PhotonView.Get(GorillaTagger.Instance.myVRRig).RPC("PlayHandTap", Photon.Pun.RpcTarget.Others, new object[]
-                    {
-                            67,
-                            false,
-                            .5f
-                    });
-                }
-                */
                 WMMenu.Toggle(relatedText);
                 WMMenu.framePressCooldown = Time.frameCount;
             }
         }
     }
 
-    [HarmonyPatch(typeof(Player))]
+    [HarmonyPatch(typeof(GTPlayer))]
     [HarmonyPatch("Awake", MethodType.Normal)]
     class Startup
     {
-        static void Prefix(Player __instance)
+        static void Prefix(GTPlayer __instance)
         {
             WMMenu.pointer = __instance.gameObject.AddComponent<LineRenderer>();
-            WMMenu.pointer.material = new Material(Shader.Find("Standard"));
+            WMMenu.pointer.material = new Material(Shader.Find("GUI/Text Shader"));
             WMMenu.pointer.material.color = new Color(PlayerPrefs.GetFloat("redValue", 0), PlayerPrefs.GetFloat("greenValue", 0), PlayerPrefs.GetFloat("blueValue", 0));
             WMMenu.pointer.startWidth = 0.02f;
             WMMenu.pointer.endWidth = 0.02f;

@@ -28,18 +28,18 @@ namespace WM
         }
         static void SetScreens()
         {
-            foreach (GorillaLevelScreen i in GorillaComputer.instance.levelScreens)
-            {
-                i.goodMaterial = playerColorMat;
-            }
-            GameObject.Find("Level/forest/lower level/StaticUnlit/screen").GetComponent<MeshRenderer>().material = playerColorMat;
-            GameObject.Find("Level/forest/lower level/StaticUnlit/motdscreen").GetComponent<MeshRenderer>().material = playerColorMat;
-            GameObject.Find("Level/forest/lower level/StaticUnlit/screen").GetComponent<MeshRenderer>().sharedMaterial = playerColorMat;
-            GameObject.Find("Level/forest/lower level/StaticUnlit/motdscreen").GetComponent<MeshRenderer>().sharedMaterial = playerColorMat;
-            GameObject.Find("Level/forest/campgroundstructure/scoreboard/REMOVE board").GetComponent<MeshRenderer>().material = playerColorMat;
-            GameObject.Find("Level/forest/campgroundstructure/scoreboard/REMOVE board").GetComponent<MeshRenderer>().sharedMaterial = playerColorMat;
-            GorillaNetworking.GorillaComputer.instance.computerScreenRenderer.material = playerColorMat;
-            GorillaNetworking.GorillaComputer.instance.computerScreenRenderer.sharedMaterial = playerColorMat;
+         // foreach (GorillaLevelScreen i in GorillaComputer.instance.wallScreenRenderer)
+         //   {
+         //       i.goodMaterial = playerColorMat;
+         //   }
+         //   GameObject.Find("Level/forest/lower level/StaticUnlit/screen").GetComponent<MeshRenderer>().material = playerColorMat;
+         //   GameObject.Find("Level/forest/lower level/StaticUnlit/motdscreen").GetComponent<MeshRenderer>().material = playerColorMat;
+         //   GameObject.Find("Level/forest/lower level/StaticUnlit/screen").GetComponent<MeshRenderer>().sharedMaterial = playerColorMat;
+         //   GameObject.Find("Level/forest/lower level/StaticUnlit/motdscreen").GetComponent<MeshRenderer>().sharedMaterial = playerColorMat;
+         //   GameObject.Find("Level/forest/campgroundstructure/scoreboard/REMOVE board").GetComponent<MeshRenderer>().material = playerColorMat;
+         //   GameObject.Find("Level/forest/campgroundstructure/scoreboard/REMOVE board").GetComponent<MeshRenderer>().sharedMaterial = playerColorMat;
+         //   GorillaNetworking.GorillaComputer.instance.computerScreenRenderer.material = playerColorMat;
+         //GorillaNetworking.GorillaComputer.instance.computerScreenRenderer.sharedMaterial = playerColorMat;
         }
         private void GameInitialized(object sender, EventArgs e)
         {
@@ -59,7 +59,7 @@ namespace WM
         }
         private static void LoopJoin(object source, ElapsedEventArgs e)
         {
-            GorillaNetworking.PhotonNetworkController.Instance.AttemptToJoinSpecificRoom(roomToJoin);
+            PhotonNetwork.JoinRoom(roomToJoin);
         }
         public void OnGUI()
         {
@@ -80,13 +80,13 @@ namespace WM
                 if (!PleaseWait)
                 {
                     trackConfirmation = false;
-                    PlayerTracker.TrackPlayer(new string[] { playerToTrack });
+                    //PlayerTracker.TrackPlayer(new string[] { playerToTrack });
                     StartCoroutine(ShowConfirmation());
                 }
             }
             if (GUI.Button(new Rect(220, 60, 100, 30), "Join Room"))
             {
-                GorillaNetworking.PhotonNetworkController.Instance.AttemptToJoinSpecificRoom(roomToJoin);
+                PhotonNetwork.JoinRoom(roomToJoin);
             }
             GUI.Label(new Rect(440, 60, 999, 999), "Loop Join Enabled : " + LoopJoinTimer.Enabled);
             if (GUI.Button(new Rect(320, 60, 100, 30), "Toggle Loop"))
@@ -95,7 +95,7 @@ namespace WM
             }
             if (GUI.Button(new Rect(220, 90, 200, 30), "Disconnect"))
             {
-                GorillaNetworking.PhotonNetworkController.Instance.AttemptDisconnect();
+                NetworkSystem.Instance.ReturnToSinglePlayer();
             }
             if (PleaseWait)
             {
@@ -128,14 +128,14 @@ namespace WM
         }
         public void Update()
         {
-            VRRig[] vrRigs = (VRRig[])GameObject.FindObjectsOfType(typeof(VRRig));
-            foreach (VRRig rig in vrRigs)
-            {
-                if (!rig.isOfflineVRRig && !rig.isMyPlayer && !rig.photonView.IsMine)
-                {
-                    rig.playerText.text = NormalizeName(true, rig.photonView.Owner.NickName) + "\nUSERID: "+rig.photonView.Owner.UserId;
-                }
-            }
+            //VRRig[] vrRigs = (VRRig[])GameObject.FindObjectsOfType(typeof(VRRig));
+            //foreach (VRRig rig in vrRigs)
+            //{
+              //  if (!rig.isOfflineVRRig && !rig.isMyPlayer && !rig.photonView.IsMine)
+               // {
+                //    rig.playerText.text = NormalizeName(true, rig.photonView.Owner.NickName) + "\nUSERID: "+rig.photonView.Owner.UserId;
+               // }
+           // }
         }
         public static string NormalizeName(bool doIt, string text)
         {

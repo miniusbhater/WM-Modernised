@@ -1,4 +1,5 @@
-﻿/*
+﻿// not a chance XD
+/*
  * SUCCESSFUL ATTEMPTS BETA:
  * FES (RANDOM GUY IN A MODDED PUB)
  * MERCYVR (YOUTUBER)
@@ -10,7 +11,7 @@ Console.WriteLine("Player Is Online: " + player.IsOnline);
 Console.WriteLine("Player Is In A Room: " + player.IsInRoom);
 Console.WriteLine("Player Room: " + player.Room);
 Console.WriteLine("-------------- WM PLAYER TRACKER INFO --------------" + Environment.NewLine);
-*/
+*//*
 
 using System.Timers;
 using System.Collections.Generic;
@@ -35,14 +36,14 @@ namespace WM
             GameObject.Find("CodeOfConduct").GetComponent<Text>().text = "<color=cyan>< WM PLAYER TRACKER ></color>";
             GameObject.Find("COC Text").GetComponent<Text>().text = "<color=cyan>LOADING PLAYERTRACKER PLEASE WAIT!!!</color>";
             GameObject.Find("COC Text").GetComponent<Text>().lineSpacing = GameObject.Find("Level/forest/lower level/UI/Tree Room Texts/COC Text").GetComponent<Text>().lineSpacing / 2;
-            /*
+            *//*
             for (int i = 0; i < 5; i++)
             {
                 GameObject gameobject = Instantiate(GameObject.Find("Level/forest/lower level/UI/Tree Room Texts/COC Text"));
                 gameobject.transform.parent = GameObject.Find("Level/forest/lower level/UI/Tree Room Texts/COC Text").transform.parent;
                 gameobject.transform.position += -gameobject.transform.up / 2;
             }
-            */
+            *//*
             Directory.CreateDirectory(@"WM\Players");
             TrackerTimer = new Timer();
             TrackerTimer.Elapsed += new ElapsedEventHandler(CheckTrackedPlayer);
@@ -240,4 +241,4 @@ namespace WM
             WMUtils.PleaseWait = false;
         }
     }
-}
+}*/
